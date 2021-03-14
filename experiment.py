@@ -3,25 +3,50 @@ import re
 import shutil
 import tarfile
 import logging
+import pandas as pd
+
+from pyspark import rdd
 from pyspark import SparkContext
 
-def replace_nulls_with(source, value, sc, logger=logging):
-        rdd = None
-        
-        try:
-                rdd = sc.textFile(source)
-        except Exception as e:
-                logger.info(f'Rdd could not be created from source {source} : {e}')
-        
-        try:
-                rdd = rdd.map(lambda line: 
-                                tuple(map(lambda field: (re.match(r'^[ ]*$', str(field)) != None)*(value) or field, line.split(','))))
-        except Exception as e:
-                logger.warning(f'Error replacing nulls with value {value} : {e}')
+def replace_nulls_with(data, value, logger=logging):
+        '''
+        Replaces all nulls in pandas dataframe or spark rdd 
+                and returns output in matching format.
+        Parameters:
+                data (dataframe | sparkRDD): the data to scan
+                value (str): the value to replace nulls
+                logger (optional): the logger to forward logs
+        Returns:
+                output (dataframe | sparkRDD): the input data with all nulls replaced
+        '''
+        output = None
 
-        return rdd
+        if isinstance(data, rdd.PipelinedRDD):
+                try:
+                        output = data.map(lambda line: 
+                                        tuple(map(lambda field: (re.match(r'^[ ]*$', str(field)) != None)*(value) or field, line.split(','))))
+                except Exception as e:
+                        logger.warning(f'Error replacing nulls with value {value} : {e}')
+
+        elif isinstance(data, pd.core.frame.DataFrame):
+                try:
+                        output = data.replace(to_replace=r'^[ ]*$', value=value)
+                except Exception as e:
+                        logger.warning(f'Error replacing nulls with value {value} : {e}')
+        
+        return output
 
 def archive_file(source, destination, logger=logging):
+        '''
+        Archives a file as .tar from a source to a destination
+        Parameters:
+                source (str): the path and name of file (e.g. /temp/source.csv)
+                destination (str): the path and name of file (e.g. /temp/dest.tar)
+                logger (optional): the logger to forward logs
+        Returns:
+                nothing
+        '''
+
         archive = None
         
         try:
@@ -45,6 +70,16 @@ def archive_file(source, destination, logger=logging):
                 logger.error(f'Could not close archive: {e}')
 
 def copy_file(source, destination, logger=logging):
+        '''
+        Copies a file from a source to a destination
+        Parameters:
+                source (str): the path and name of file (e.g. /temp/source.csv)
+                destination (str): the path and name of file (e.g. /temp/dest.tar)
+                logger (optional): the logger to forward logs
+        Returns:
+                nothing
+        '''
+
         try:
                 shutil.copy2(source, destination)
         except Exception as e:
@@ -52,6 +87,15 @@ def copy_file(source, destination, logger=logging):
         
 
 def is_file_empty(source, logger=logging):
+        '''
+        Checks if the file at the source location is empty
+        Parameters:
+                source (str): the path and name of file (e.g. /temp/source.csv)
+                logger (optional): the logger to forward logs
+        Returns:
+                nothing
+        '''
+
         size = 0
         
         try:
@@ -61,8 +105,21 @@ def is_file_empty(source, logger=logging):
         
         return (size == 0)
 
-# Helper functions for managing Spark Contexts
+
+
+# -------------------------------------------------
+# Some helptul functions for handling SparkContexts
+# -------------------------------------------------
+
 def start_spark(logger=logging):
+        '''
+        Helper to start a new SparkContext
+        Parameters:
+                logger (optional): the logger to forward logs
+        Returns:
+                sc (SparkContext): the new SparkContext
+        '''
+
         sc = None
 
         try:
@@ -73,15 +130,16 @@ def start_spark(logger=logging):
         return sc
 
 def stop_spark(sc, logger=logging):
+        '''
+        Helper to stop a given SparkContext
+        Parameters:
+                sc (SparkContext): the SparkContext to stop
+                logger (optional): the logger to forward logs
+        Returns:
+                nothing
+        '''
+
         try:
                 sc.stop()
         except Exception as e:
                 logger.error(f'Could not stop SparkContext: {e}')
-
-
-# Example replace_nulls_with, "County_time_series.csv" is in same folder 
-# Once Spark Context is stopped - rdd will be gone
-
-#sc = start_spark()
-#tf = replace_nulls_with('County_time_series.csv', 'Nan', sc)
-#stop_spark(sc)
