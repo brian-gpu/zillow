@@ -22,7 +22,7 @@ def replace_nulls_with(data, replacewith, logger=logging):
         '''
         output = None
 
-        if isinstance(data, rdd.PipelinedRDD):
+        if isinstance(data, rdd.RDD) or isinstance(data, rdd.PipelinedRDD):
                 try:
                         output = data.map(lambda line: 
                                         tuple(map(lambda field: (re.match(r'^[ ]*$', str(field)) != None)*(replacewith) or field, line.split(','))))
