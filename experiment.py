@@ -4,17 +4,18 @@ import shutil
 import tarfile
 import logging
 import pandas as pd
+import numpy as np
 
 from pyspark import rdd
 from pyspark import SparkContext
 
-def replace_nulls_with(data, value, logger=logging):
+def replace_nulls_with(data, replacewith, logger=logging):
         '''
         Replaces all nulls in pandas dataframe or spark rdd 
                 and returns output in matching format.
         Parameters:
                 data (dataframe | sparkRDD): the data to scan
-                value (str): the value to replace nulls
+                replacewith (str): the value to replace nulls
                 logger (optional): the logger to forward logs
         Returns:
                 output (dataframe | sparkRDD): the input data with all nulls replaced
@@ -24,15 +25,15 @@ def replace_nulls_with(data, value, logger=logging):
         if isinstance(data, rdd.PipelinedRDD):
                 try:
                         output = data.map(lambda line: 
-                                        tuple(map(lambda field: (re.match(r'^[ ]*$', str(field)) != None)*(value) or field, line.split(','))))
+                                        tuple(map(lambda field: (re.match(r'^[ ]*$', str(field)) != None)*(replacewith) or field, line.split(','))))
                 except Exception as e:
-                        logger.warning(f'Error replacing nulls with value {value} : {e}')
+                        logger.warning(f'Error replacing nulls with value {replacewith} : {e}')
 
         elif isinstance(data, pd.core.frame.DataFrame):
                 try:
-                        output = data.replace(to_replace=r'^[ ]*$', value=value)
+                        output = data.replace(to_replace=np.nan, value=replacewith)
                 except Exception as e:
-                        logger.warning(f'Error replacing nulls with value {value} : {e}')
+                        logger.warning(f'Error replacing nulls with value {replacewith} : {e}')
         
         return output
 
