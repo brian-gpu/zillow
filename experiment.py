@@ -31,7 +31,7 @@ def replace_nulls_with(data, replacewith, logger=logging):
 
         elif isinstance(data, pd.core.frame.DataFrame):
                 try:
-                        output = data.replace(to_replace=np.nan, value=replacewith)
+                        output = data.replace(to_replace=pd.NA, value=replacewith)
                 except Exception as e:
                         logger.warning(f'Error replacing nulls with value {replacewith} : {e}')
         
@@ -144,3 +144,10 @@ def stop_spark(sc, logger=logging):
                 sc.stop()
         except Exception as e:
                 logger.error(f'Could not stop SparkContext: {e}')
+
+
+# Example Usage
+
+# df = pd.read_csv('County_time_series.csv', low_memory=False).convert_dtypes()
+# df = replace_nulls_with(df, 'Placeholder')
+# print(df.head(10))
